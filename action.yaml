@@ -1,0 +1,92 @@
+name: 'Update Kustomize Image Tag in Manifest'
+description: 'Updates the image tag in a k8s manifest and commits the change'
+inputs:
+  image-tag:
+    description: 'Image tag to update in the manifest'
+    required: true
+  manifest-path:
+    description: 'Path to the manifest file (kustomization.yaml or helm release)'
+    required: true
+  branch-name:
+    description: 'Branch name to push to (defaults to github.ref_name)'
+    required: false
+    default: ''
+  use-flux-app-auth:
+    description: 'Use GitHub App authentication (flux app) instead of default bot'
+    required: false
+    default: 'false'
+  flux-app-id:
+    description: 'GitHub App ID for flux authentication (required if use-flux-app-auth is true)'
+    required: false
+    default: ''
+  flux-app-private-key:
+    description: 'GitHub App private key for flux authentication (required if use-flux-app-auth is true)'
+    required: false
+    default: ''
+  update-pattern:
+    description: 'Pattern to update: "newTag" for kustomization.yaml or "tag" for helm releases'
+    required: false
+    default: 'tag'
+  skip-ci:
+    description: 'Add [skip ci] to commit message'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Generate token for bisnow-flux-gitops-app
+      if: inputs.use-flux-app-auth == 'true'
+      uses: actions/create-github-app-token@v2
+      id: app-token
+      with:
+        app-id: ${{ inputs.flux-app-id }}
+        private-key: ${{ inputs.flux-app-private-key }}
+
+    - name: Checkout Repository (with flux app token)
+      if: inputs.use-flux-app-auth == 'true'
+      uses: actions/checkout@v5
+      with:
+        token: ${{ steps.app-token.outputs.token }}
+
+    - name: Checkout Repository (default)
+      if: inputs.use-flux-app-auth != 'true'
+      uses: actions/checkout@v5
+
+    - name: Update manifest image tag
+      run: |
+        manifest_path="${{ inputs.manifest-path }}"
+        image_tag="${{ inputs.image-tag }}"
+        update_pattern="${{ inputs.update-pattern }}"
+
+        sed -i "s|${update_pattern}: .*|${update_pattern}: $image_tag|" "$manifest_path"
+        echo "Updated $manifest_path with ${update_pattern}: $image_tag"
+      shell: bash
+
+    - name: Commit and push manifest update
+      run: |
+        branch_name="${{ inputs.branch-name }}"
+        if [ -z "$branch_name" ]; then
+          branch_name="${{ github.ref_name }}"
+        fi
+
+        # Configure git user based on auth method
+        if [ "${{ inputs.use-flux-app-auth }}" = "true" ]; then
+          git config user.name "bisnow-flux-gitops-app[bot]"
+          git config user.email "bisnow-flux-gitops-app[bot]@users.noreply.github.com"
+        else
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+        fi
+
+        git add "${{ inputs.manifest-path }}"
+
+        # Add [skip ci] if requested
+        commit_message="chore: update image to ${{ inputs.image-tag }}"
+        if [ "${{ inputs.skip-ci }}" = "true" ]; then
+          commit_message="$commit_message [skip ci]"
+        fi
+
+        git commit -m "$commit_message"
+        git push origin "HEAD:$branch_name" --force
+      shell: bash
