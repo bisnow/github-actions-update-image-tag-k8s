@@ -39,7 +39,7 @@ update-image-tag:
   if: needs.build-and-push.result == 'success'
   steps:
     - name: Update manifest image to ${{ inputs.image-tag || env.TAG }}
-      uses: bisnow/github-actions-update-image-tag-k8s@v1
+      uses: bisnow/github-actions-update-image-tag-k8s@v1.0
       with:
         image-tag: ${{ inputs.image-tag || env.TAG }}
         manifest-path: .k8s/overlays/dev/kustomization.yaml
@@ -58,7 +58,7 @@ update-image-tag:
   if: needs.build-and-push.result == 'success'
   steps:
     - name: Update manifest image to ${{ inputs.image-tag || env.TAG }}
-      uses: bisnow/github-actions-update-image-tag-k8s@v1
+      uses: bisnow/github-actions-update-image-tag-k8s@v1.0
       with:
         image-tag: ${{ inputs.image-tag || env.TAG }}
         manifest-path: .k8s/overlays/dev/kustomization.yaml
@@ -81,7 +81,7 @@ update-image-tag:
   if: needs.build-and-push.result == 'success'
   steps:
     - name: Update manifest image to ${{ inputs.image-tag || env.TAG }}
-      uses: bisnow/github-actions-update-image-tag-k8s@v1
+      uses: bisnow/github-actions-update-image-tag-k8s@v1.0
       with:
         image-tag: ${{ inputs.image-tag || env.TAG }}
         manifest-path: .k8s/dev/dev-helm-release.yaml
