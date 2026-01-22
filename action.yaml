@@ -54,6 +54,7 @@ runs:
       uses: actions/checkout@v5
 
     - name: Update manifest image tag
+      shell: bash
       run: |
         manifest_path="${{ inputs.manifest-path }}"
         image_tag="${{ inputs.image-tag }}"
@@ -61,9 +62,9 @@ runs:
 
         sed -i "s|${update_pattern}: .*|${update_pattern}: $image_tag|" "$manifest_path"
         echo "Updated $manifest_path with ${update_pattern}: $image_tag"
-      shell: bash
 
     - name: Commit and push manifest update
+      shell: bash
       run: |
         branch_name="${{ inputs.branch-name }}"
         if [ -z "$branch_name" ]; then
@@ -81,6 +82,12 @@ runs:
 
         git add "${{ inputs.manifest-path }}"
 
+        # Check if there are any changes to commit
+        if git diff --cached --quiet; then
+          echo "No changes detected - image tag was already up to date"
+          exit 0
+        fi
+
         # Add [skip ci] if requested
         commit_message="chore: update image to ${{ inputs.image-tag }}"
         if [ "${{ inputs.skip-ci }}" = "true" ]; then
@@ -89,4 +96,3 @@ runs:
 
         git commit -m "$commit_message"
         git push origin "HEAD:$branch_name" --force
-      shell: bash
