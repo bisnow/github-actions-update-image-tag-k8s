@@ -68,7 +68,12 @@ runs:
       run: |
         branch_name="${{ inputs.branch-name }}"
         if [ -z "$branch_name" ]; then
-          branch_name="${{ github.ref_name }}"
+          # Check if ref is a tag, if so use main branch
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            branch_name="main"
+          else
+            branch_name="${{ github.ref_name }}"
+          fi
         fi
 
         # Configure git user based on auth method
