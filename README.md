@@ -24,6 +24,7 @@ A composite GitHub Action that updates image tags in Kubernetes manifests (kusto
 | `flux-app-private-key` | GitHub App private key (required if using flux auth) | No | - |
 | `update-pattern` | Pattern to update: `newTag` or `tag` | No | `tag` |
 | `skip-ci` | Add `[skip ci]` to commit message | No | `false` |
+| `yaml-path` | Explicit yq-style YAML path to update (e.g. `.image.tag`). When set, uses `yq` instead of `sed` — recommended for files with multiple `tag` keys. | No | - |
 
 ## Usage Examples
 
@@ -91,6 +92,30 @@ update-image-tag:
         flux-app-private-key: ${{ secrets.FLUX_APP_PRIVATE_KEY }}
         skip-ci: true
 ```
+
+### Example 4: Targeting a Specific Tag in a Multi-Tag File
+
+For files like a PR stack `values.yaml` that contain multiple `tag` keys (e.g. one for the main image, one for a sidecar, one for an external database), use `yaml-path` to target a specific key precisely.
+
+```yaml
+update-image-tag:
+  name: Update PR Stack Image Tag
+  runs-on: ubuntu-latest
+  steps:
+    - name: Update manifest image to ${{ inputs.image-tag }}
+      uses: bisnow/github-actions-update-image-tag-k8s@v1
+      with:
+        image-tag: ${{ inputs.image-tag }}
+        manifest-path: .k8s/pr/values.yaml
+        yaml-path: .image.tag   # updates only this key, ignores all other tag keys
+        use-flux-app-auth: true
+        flux-app-id: ${{ secrets.FLUX_APP_ID }}
+        flux-app-private-key: ${{ secrets.FLUX_APP_PRIVATE_KEY }}
+```
+
+Other useful paths for the same file:
+- `.externalDatabase.image.tag` — update the external database image
+- `.additionalContainers[0].image.tag` — update the first additional container
 
 ## Authentication Methods
 
