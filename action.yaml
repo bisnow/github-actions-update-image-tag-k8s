@@ -31,6 +31,10 @@ inputs:
     description: 'Add [skip ci] to commit message'
     required: false
     default: 'false'
+  yaml-path:
+    description: 'Explicit yq-style YAML path to update (e.g. .image.tag). When set, uses yq for precise single-key updates instead of sed. Recommended for files with multiple tag keys.'
+    required: false
+    default: ''
 
 runs:
   using: 'composite'
@@ -59,9 +63,15 @@ runs:
         manifest_path="${{ inputs.manifest-path }}"
         image_tag="${{ inputs.image-tag }}"
         update_pattern="${{ inputs.update-pattern }}"
+        yaml_path="${{ inputs.yaml-path }}"
 
-        sed -i "s|${update_pattern}: .*|${update_pattern}: $image_tag|" "$manifest_path"
-        echo "Updated $manifest_path with ${update_pattern}: $image_tag"
+        if [ -n "$yaml_path" ]; then
+          yq e "${yaml_path} = \"${image_tag}\"" -i "$manifest_path"
+          echo "Updated $manifest_path: ${yaml_path} = ${image_tag}"
+        else
+          sed -i "s|${update_pattern}: .*|${update_pattern}: $image_tag|" "$manifest_path"
+          echo "Updated $manifest_path with ${update_pattern}: $image_tag"
+        fi
 
     - name: Commit and push manifest update
       shell: bash
