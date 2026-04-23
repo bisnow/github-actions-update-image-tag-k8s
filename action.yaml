@@ -52,10 +52,13 @@ runs:
       uses: actions/checkout@v6
       with:
         token: ${{ steps.app-token.outputs.token }}
+        fetch-depth: 50
 
     - name: Checkout Repository (default)
       if: inputs.use-flux-app-auth != 'true'
       uses: actions/checkout@v6
+      with:
+        fetch-depth: 50
 
     - name: Update manifest image tag
       shell: bash
@@ -110,4 +113,26 @@ runs:
         fi
 
         git commit -m "$commit_message"
-        git push origin "HEAD:$branch_name" --force
+
+        # Rebase onto latest remote tip and push. Retries handle races with
+        # concurrent commits to the branch; force-push is rejected by the
+        # non_fast_forward ruleset on protected branches.
+        max_attempts=5
+        attempt=1
+        while [ $attempt -le $max_attempts ]; do
+          git fetch origin "$branch_name"
+          if ! git rebase "origin/$branch_name"; then
+            echo "Rebase conflict on $branch_name — aborting"
+            git rebase --abort
+            exit 1
+          fi
+          if git push origin "HEAD:$branch_name"; then
+            echo "Pushed on attempt $attempt"
+            exit 0
+          fi
+          echo "Push rejected on attempt $attempt (branch moved), retrying..."
+          attempt=$((attempt + 1))
+        done
+
+        echo "Failed to push after $max_attempts attempts"
+        exit 1
