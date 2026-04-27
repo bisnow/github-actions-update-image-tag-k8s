@@ -52,13 +52,15 @@ runs:
       uses: actions/checkout@v6
       with:
         token: ${{ steps.app-token.outputs.token }}
-        fetch-depth: 50
+        ref: ${{ inputs.branch-name || github.head_ref || github.ref_name }}
+        fetch-depth: 0
 
     - name: Checkout Repository (default)
       if: inputs.use-flux-app-auth != 'true'
       uses: actions/checkout@v6
       with:
-        fetch-depth: 50
+        ref: ${{ inputs.branch-name || github.head_ref || github.ref_name }}
+        fetch-depth: 0
 
     - name: Update manifest image tag
       shell: bash
